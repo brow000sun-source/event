@@ -8,7 +8,7 @@ dp = Dispatcher()
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
-model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
+model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 events = {
     "1": {
         "name": "Концерт лучших комиков Томска",
