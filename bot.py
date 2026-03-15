@@ -11,7 +11,7 @@ model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 
 # 1. Загружаем переменные (токен)
 load_dotenv()
-TOKEN = os.getenv('API_TOKEN')
+TOKEN = os.getenv('BOT_TOKEN')
 
 # 2. Инициализируем бота
 bot = Bot(token=TOKEN)
