@@ -6,6 +6,8 @@ from aiogram.filters import Command
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
+# 3. Загружаем модель (облегченную)
+model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 
 # 1. Загружаем переменные (токен)
 load_dotenv()
@@ -15,8 +17,6 @@ TOKEN = os.getenv('BOT_TOKEN')
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# 3. Загружаем модель (облегченную)
-model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 events = {
     "1": {
         "name": "Концерт лучших комиков Томска",
