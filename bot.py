@@ -1,13 +1,21 @@
 import os
-BOT_TOKEN = os.environ.get('BOT_TOKEN')
 import asyncio
+from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
+
+# 1. Загружаем переменные (токен)
+load_dotenv()
+TOKEN = os.getenv('BOT_TOKEN')
+
+# 2. Инициализируем бота
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
+
+# 3. Загружаем модель (облегченную)
 model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 events = {
     "1": {
@@ -1119,58 +1127,6 @@ events = {
         "contacts": ["@jiva_yoga_studio", "@katsa_sangeeta", "@gahovasvetlana369"]
     }
 }
-
-#1. Подготовка данных (один раз при запуске)
-event_texts = []
-event_info = []
-
-for event_id, event in events.items():
-    text = f"{event.get('name', '')} {event.get('description', '')} {' '.join(event.get('tags', []))}"
-    event_texts.append(text)
-    event_info.append(event)
-
-# Кодируем все события в векторы
-print("Загружаю базу событий в память бота...")
-event_embeddings = model.encode(event_texts)
-
-
-#2. Логика работы бота
-@dp.message(Command("start"))
-async def start_cmd(message: types.Message):
-    await message.answer("Привет! Не знаешь куда сходить на выходных со своими друзьями или родными? Я помогу подобрать мероприятия в Кемерово, расскажу сколько они стоят, когда и где проходят! Напиши, чем интересуешься (изучаю психологию, люблю готовить, слушаю рок) или куда бы хотел сходить, и я подберу варианты!")
-
-
-@dp.message()
-async def handle_message(message: types.Message):
-    user_phrase = message.text
-    user_embedding = model.encode([user_phrase])
-
-    # Считаем похожесть
-    similarities = cosine_similarity(user_embedding, event_embeddings).flatten()
-    top_indices = np.argsort(similarities)[::-1][:3]
-    response = f"Ваш запрос: '{user_phrase}'\n\nВот что я нашел:\n"
-    found = False
-
-    for idx in top_indices:
-        score = similarities[idx]
-        if score > 0.3:  # Фильтр схожести
-            event = event_info[idx]
-            response += f"✅ {event['name']}\n📅 Дата: {event.get('date', '—')}\n📍 Место: {event.get('place', '—')}\n\n"
-            found = True
-
-    if not found:
-        response = "К сожалению, ничего подходящего не нашлось. Попробуйте написать по-другому!"
-    await message.answer(response)
-
-
-#3. Запуск бота
-async def main():
-    print("Бот успешно запущен! Можно писать ему в Telegram.")
-    await dp.start_polling(bot)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
 synonyms = {
     'готовить': ['кулинария', 'кухня', 'еда', 'рецепты', 'выпечка', 'кулинарный', 'кухар', 'пирожные'],
 
@@ -1198,71 +1154,63 @@ synonyms = {
     'учеба': ['учеба', 'образование', 'школа', 'урок', 'лекция', 'семинар', 'мастер-класс'],
     'наука': ['наука', 'эксперимент', 'лаборатория', 'исследование', 'STEM']
     }
-#1. Подготовка данных для поиска
+# 1. Подготовка данных (делаем один раз при запуске)
 event_texts = []
 event_info = []
 
-# Проходим по всем событиям и собираем текст для анализа
 for event_id, event in events.items():
-    # Собираем всё в одну строку: Название + Описание + Теги
-    text = f"{event.get('name', '')} {event.get('description', '')} {' '.join(event.get('tags', []))}"
-    event_texts.append(text)
+    # 1. Собираем текст (имя + описание)
+    text = f"{event.get('name', '')} {event.get('description', '')}"
+    # 2. ДОБАВЛЯЕМ СИНОНИМЫ
+    extra_syns = " ".join([])
+    # 3. Приклеиваем их к основному тексту
+    event_texts.append(text + " " + extra_syns)
     event_info.append(event)
 
-print("Анализирую базу событий... Подождите немного.")
-# Превращаем тексты событий в цифровые векторы (эмбеддинги)
+print("Загружаю базу событий в память бота...")
 event_embeddings = model.encode(event_texts)
-print("Готово! Я готов подбирать рекомендации.")
 
 
-#2. Функции телеграм-бота
+# --- 2. Обработчик команды /start ---
 @dp.message(Command("start"))
-async def start_cmd(message: types.Message):
-    await message.answer("Привет! Я твой гид по событиям. Напиши, что тебе интересно (например: хочу на концерт или мультики), и я подберу варианты!")
+async def cmd_start(message: types.Message):
+    await message.answer("Привет! Я помогу найти мероприятия в Кемерово. Просто напиши, что тебя интересует (например, 'хочу на концерт').")
+
+
+# --- 3. Основной обработчик сообщений (Рекомендация) ---
 @dp.message()
 async def handle_message(message: types.Message):
-    user_phrase = message.text
-    # Превращаем запрос пользователя в цифровой вектор
-    user_embedding = model.encode([user_phrase])
+    user_query = message.text
+    user_embedding = model.encode([user_query])
 
-    # Считаем похожесть запроса со всеми событиями в базе
+    # Считаем похожесть
     similarities = cosine_similarity(user_embedding, event_embeddings).flatten()
-
-    # Находим индексы 3-х самых похожих событий
     top_indices = np.argsort(similarities)[::-1][:3]
 
-    response = f"Ваш запрос: '{user_phrase}'\n\nВот что я нашел:\n"
+    response = "Вот что я нашел:\n\n"
     found = False
 
     for idx in top_indices:
-        score = similarities[idx]
-        if score > 0.3:  # Показываем только если совпадение больше 30%
+        if similarities[idx] > 0.3:
             event = event_info[idx]
-            response += f"✅ {event['name']}\n📅 Дата: {event.get('date', '—')}\n📍 Место: {event.get('place', '—')}\n\n"
-            # Добавляем телефон, если есть
-            if event.get('phone'):
-                event_text += f"\n  📞 Телефон: {event['phone']}"
-
-            # Добавляем ссылку, если есть
-            if event.get('url'):
-                event_text += f"\n  🔗 Ссылка: {event['url']}"
-
-            response += event_text
+            response += f" {event['name']}\n\n📍{event.get('place', ':')},{event.get('address', ':')}\n📅 {event.get('date', '-')}\n💸 {event.get('price', ':')}\n\n"
             found = True
 
     if not found:
-        response = "К сожалению, ничего подходящего не нашлось. Попробуйте описать запрос иначе!"
+        response = "К сожалению, ничего не нашлось. Попробуй другой запрос!"
 
     await message.answer(response)
 
 
-#3. Запуск программы
+# --- 4. Запуск бота ---
 async def main():
-    print("Бот успешно запущен! Теперь можно писать ему в Telegram.")
+    await bot.delete_webhook(drop_pending_updates=True)
+    print("Бот успешно запущен!")
     await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        pass
