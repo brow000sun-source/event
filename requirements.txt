@@ -2,3 +2,4 @@ aiogram
 numpy
 scikit-learn
 sentence-transformers
+python-dotenv
