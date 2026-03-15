@@ -1,9 +1,9 @@
 import os
-API_TOKEN = os.environ.get('API_TOKEN')
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
 import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-bot = Bot(token=API_TOKEN)
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
